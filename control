@@ -1,0 +1,9 @@
+Package: com.ax.axmenu
+Name: AXMenu
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: AX runtime mod menu
+Maintainer: dj
+Author: dj
+Section: Tweaks
+Depends: mobilesubstrate
