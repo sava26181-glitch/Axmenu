@@ -1,0 +1,66 @@
+name: axmenu-build
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git make clang llvm lld perl libssl-dev libplist-dev \
+            libpng-dev libjpeg-dev fakeroot dpkg file xz-utils unzip wget zstd curl \
+            libtinfo6 rsync zip build-essential libplist-utils
+          curl -L -o /usr/local/bin/ldid \
+            https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64 || true
+          chmod +x /usr/local/bin/ldid || true
+
+      - name: install theos (toolchain only)
+        run: |
+          export THEOS=$GITHUB_WORKSPACE/theos
+          mkdir -p $THEOS
+          if [ ! -d "$THEOS/makefiles" ]; then
+            git clone --recursive --depth 1 https://github.com/theos/theos.git $THEOS || true
+          fi
+          curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos -o /tmp/install-theos
+          chmod +x /tmp/install-theos
+          echo "n" | THEOS=$THEOS bash /tmp/install-theos || true
+          echo "THEOS=$THEOS" >> $GITHUB_ENV
+          echo "=== toolchain check ==="
+          ls -la $THEOS/toolchain/linux/iphone/bin/clang 2>/dev/null || true
+
+      - name: install ios sdk manually
+        run: |
+          mkdir -p $THEOS/sdks
+          cd /tmp
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/theos-sdks || true
+          cd /tmp/theos-sdks || exit 0
+          git lfs pull 2>/dev/null || true
+          for d in /tmp/theos-sdks/*.sdk; do
+            [ -d "$d" ] && cp -r "$d" $THEOS/sdks/ && echo "copied: $d"
+          done
+          if [ -z "$(ls -A $THEOS/sdks 2>/dev/null | grep sdk)" ]; then
+            git clone --depth 1 https://github.com/xybp888/iOS-SDKs.git /tmp/xy-sdks || true
+            cd /tmp/xy-sdks || exit 0
+            find . -maxdepth 2 -type d -name "*.sdk" -exec cp -r {} $THEOS/sdks/ \;
+          fi
+          echo "=== final sdks ==="
+          ls -la $THEOS/sdks/ | head -n 20
+
+      - name: build
+        run: |
+          rm -rf .theos packages
+          make clean || true
+          make package FINALPACKAGE=1 2>&1 | tee /tmp/build.log
+          echo "=== packages ==="
+          ls -la packages/ || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AXMenu-deb
+          path: packages/*.deb
+          if-no-files-found: warn
