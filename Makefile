@@ -4,8 +4,9 @@ THEOS_PACKAGE_SCHEME = rootless
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = AXHideJB
-AXHideJB_FILES = axhidejb.xm hide.mm fishhook.c
-AXHideJB_CFLAGS = -fobjc-arc -I.
+TWEAK_NAME = AXMenu
+AXMenu_FILES = axmenu.xm hooks.mm esp.mm hide.mm fishhook.c
+AXMenu_CFLAGS = -fobjc-arc -I.
+AXMenu_FRAMEWORKS = UIKit Foundation
 
 include $(THEOS)/makefiles/tweak.mk
